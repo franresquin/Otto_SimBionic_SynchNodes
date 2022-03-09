@@ -27,25 +27,22 @@ unsigned long active_period=0;
 bool flag_send_trigger;
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  
-  //HostCom.print("\r\nLast Packet Send Status: ");
-  //HostCom.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
-  
+  HostCom.println("[S] Trigger sent");
 }
 
 void interrupt_handler(void){
 
-  HostCom.print("+ [I] Trigger Received -> ");
+  //HostCom.print("+ [I] Trigger Received -> ");
   if(trigger_input.freeze_receiving == false){
     trigger_input.freeze_receiving = true;
     trigger_input.event_number++;
     flag_send_trigger = true;
-    HostCom.print("Valid");
+    //HostCom.print("Valid");
   }else{
-    HostCom.print("Discarded");
+    //HostCom.print("Discarded");
   }
 
-  HostCom.println();
+  //HostCom.println();
   
 }
 
@@ -106,7 +103,7 @@ void loop() {
                                      (uint8_t *)&trigger_input.event_number,
                                       sizeof(uint16_t) );
       flag_send_trigger = false;
-      freeze_period = mtime+FREEZE_INTERVAL_MS;\
+      freeze_period = mtime+FREEZE_INTERVAL_MS;
       send_warning = false;
       HostCom.println("[L] -> Pin High");
     }
