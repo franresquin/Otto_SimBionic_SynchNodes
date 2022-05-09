@@ -5,7 +5,7 @@
 #define HostCom   Serial
 #define HOST_BAUDRATE 115200
 
-#define TRIGGER_PIN 21
+#define TRIGGER_PIN A2
 #define TRIGGER_HIGH_INTERVAL_MS 500
 #define WARNING_PERIOD_MS 5000
 
@@ -21,7 +21,7 @@ bool enable_trigger = false;
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
   uint16_t *pbuff;
 
-  HostCom.print("+ [I] Trigger Received -> ");
+  //HostCom.print("+ [I] Trigger Received -> ");
   if(enable_trigger == false){
     // Load data to the buffer //
     pbuff = (uint16_t*)incomingData;
@@ -30,11 +30,11 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
     memcpy(&trigger_signal.event_number, pbuff, sizeof(uint16_t));
     trigger_signal.trigger_received = true;
 
-    HostCom.print("Valid");
+    //HostCom.print("Valid");
   }else{
     HostCom.print("Discarded");  
   }
-  HostCom.println();
+  //HostCom.println();
 }
 
 void setup() {
