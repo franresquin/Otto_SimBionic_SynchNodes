@@ -8,7 +8,6 @@
 #define WARNING_PERIOD_MS 10000
 #define BUTTON_UPDATE_MS 100
 
-
 #define INTERRUPT_PIN 21
 #define BUTTON_PIN A2
 #define LED_PIN A0
@@ -55,7 +54,7 @@ void setup() {
   
   //Serial Port to host //
   HostCom.begin(HOST_BAUDRATE);
-  while(!HostCom);
+  //while(!HostCom);
 
   HostCom.println();
   HostCom.println("*** SimBionic Application - Trigger Node ***");

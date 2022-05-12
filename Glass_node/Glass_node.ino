@@ -5,7 +5,7 @@
 #define HostCom   Serial
 #define HOST_BAUDRATE 115200
 
-#define TRIGGER_PIN A2
+#define TRIGGER_PIN 13
 #define TRIGGER_HIGH_INTERVAL_MS 500
 #define WARNING_PERIOD_MS 5000
 
