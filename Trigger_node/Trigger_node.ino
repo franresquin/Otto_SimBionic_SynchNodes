@@ -12,6 +12,8 @@
 #define BUTTON_PIN A2
 #define LED_PIN A0
 
+#define NUM_TRIGGERS_TO_TRANSMIT 2
+
 // Host MAC-Address //
 //uint8_t Esp_Host_MacAddress[] = {0xA8, 0x03, 0x2A, 0xEA, 0x92, 0x0C};
 const uint8_t Esp_Host_MacAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; // Tagged as Host
@@ -19,27 +21,29 @@ const uint8_t Esp_Host_MacAddress[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}; // T
 esp_now_peer_info_t peerInfo;
 
 typedef struct{
-  const uint8_t PIN;
-  uint16_t event_number;
-  bool listen_trigger;
+	const uint8_t PIN;
+	uint16_t event_number;
+	bool listen_trigger;
 }trigger_t;
 
 trigger_t trigger_input = {INTERRUPT_PIN, 0, false};
 bool flag_send_trigger;
 
-// Button Variable //
+//- Button Variable -//
 bool buttonState;
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   HostCom.println("[S] Trigger sent - Confirmed");
 }
 
-void interrupt_handler(void){
+//- Callback executed when a trigger is received -//
+void trigger_interrupt_handler(void){
 
   //HostCom.print("+ [I] Trigger Received -> ");
   if(trigger_input.listen_trigger == true){
-    trigger_input.listen_trigger = false;
-    trigger_input.event_number++;
+    if( trigger_input.event_number++ >= (NUM_TRIGGERS_TO_TRANSMIT-1) ){
+      trigger_input.listen_trigger = false;
+    }
     flag_send_trigger = true;
     //HostCom.print("Valid");
   }else{
@@ -47,7 +51,6 @@ void interrupt_handler(void){
   }
 
   //HostCom.println();
-  
 }
 
 void setup() {
@@ -58,9 +61,9 @@ void setup() {
 
   HostCom.println();
   HostCom.println("*** SimBionic Application - Trigger Node ***");
-  
+
   HostCom.print("* 1. Settting Wifi communication ");
-  // ESP NOW Communication //
+  //- Setting up ESP NOW Communication -//
   WiFi.mode(WIFI_STA);
   if (esp_now_init() != ESP_OK) {
     HostCom.println("[WIFI] Error initializing ESP-NOW");
@@ -79,24 +82,24 @@ void setup() {
   HostCom.print("-* My MACAddress: ");
   HostCom.print(WiFi.macAddress());
   HostCom.println(" *-");
-  
-  // Reset Values //
-  HostCom.print("* 2. Settting input PIN ");
+
+  //- TRigger PIN -//
+  HostCom.print("* 2. Settting input Trigger PIN ");
   pinMode(trigger_input.PIN, INPUT);
-  attachInterrupt(trigger_input.PIN, interrupt_handler, RISING);
+  attachInterrupt(trigger_input.PIN, trigger_interrupt_handler, RISING);
   HostCom.println(" -> [ok]");
 
-  // Check button state //
+  //- Check button state -> Pin to enable trigger transmission -//
   pinMode(BUTTON_PIN, INPUT);
   buttonState = digitalRead(BUTTON_PIN);
 
-  // Led Pin //
+  //- Feedback Led Pin -> it is on when trigger is transmited -//
   pinMode(LED_PIN, OUTPUT);    // sets the digital pin 13 as output
   digitalWrite(LED_PIN, LOW);
 
-  // Flag and globals //
+  //- Flag and globals -//
   flag_send_trigger = false;
-  
+
   HostCom.println("--- Runnning Application ---");
   HostCom.println();
   HostCom.flush();
@@ -110,12 +113,14 @@ void loop() {
   bool curr_button=buttonState;
   static unsigned long time_read_button = millis();
 
+  // Check the button state high or low every "BUTTON_UPDATE_MS" milliseconds //
+  // Does not need to check the button to fast -> avoid wrong reading do to bouncing effects //
   if(mtime >= time_read_button){
     curr_button = check_buttonState();
     time_read_button += BUTTON_UPDATE_MS;
   }
 
-  // Check button PIN state -> if it changes then enable trigger interrupt //
+  //- Check button PIN state -> if it changes then enable trigger transmision -//
   if(curr_button != buttonState){
     
     buttonState = curr_button;
@@ -125,23 +130,27 @@ void loop() {
     
     if(trigger_input.listen_trigger == false){
       trigger_input.listen_trigger = true;
+      trigger_input.event_number = 0;
       digitalWrite(LED_PIN, HIGH);
       HostCom.print("Listen On <<");
     }else{
-      trigger_input.listen_trigger = false;  
+      trigger_input.listen_trigger = false;
+      trigger_input.event_number = 0;
       digitalWrite(LED_PIN, LOW);
       HostCom.print("Listen Off <<");
     }
     HostCom.println();
   }
 
-  // Check if trigger has been received //
+  //- Check if trigger has been received -//
   if(flag_send_trigger == true){
     flag_send_trigger = false;
-    digitalWrite(LED_PIN, LOW);
     esp_err_t result = esp_now_send(Esp_Host_MacAddress, 
                                     (uint8_t *)&trigger_input.event_number,
                                     sizeof(uint16_t) );
+    if(!trigger_input.listen_trigger){
+      digitalWrite(LED_PIN, LOW);
+    }
     HostCom.println("[T] Trigger send >>");
   }
 
@@ -153,11 +162,11 @@ void loop() {
 }
 
 bool check_buttonState(void){
-  uint8_t buttonState = digitalRead(BUTTON_PIN);
+  uint8_t bstate = digitalRead(BUTTON_PIN);
   bool ret_val = false;
   
-  // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
-  if (buttonState == HIGH) {
+  // check if the pushbutton is pressed. If it is, the button is HIGH:
+  if (bstate == HIGH) {
     // turn LED on:
     //digitalWrite(LED_PIN, HIGH);
     ret_val = true;
@@ -175,7 +184,6 @@ bool disable_trigger_listen(){
   
   if( (but_state != buttonState) || 
       (trigger_input.listen_trigger == false) ){
-    //buttonState = but_state;
     ret_val = true;
   }
   
