@@ -5,8 +5,9 @@
 #define HostCom   Serial
 #define HOST_BAUDRATE 115200
 
+#define LED_PIN SDA
 #define TRIGGER_PIN 13
-#define TRIGGER_HIGH_INTERVAL_MS 500
+#define TRIGGER_HIGH_INTERVAL_MS 250
 #define WARNING_PERIOD_MS 5000
 
 typedef struct{
@@ -17,6 +18,8 @@ typedef struct{
 
 trigger_t trigger_signal = {TRIGGER_PIN, 0, false};
 bool enable_trigger = false;
+
+unsigned int trg_counter = 0;
 
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
   uint16_t *pbuff;
@@ -35,6 +38,7 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *incomingData, int len) {
     HostCom.print("Discarded");  
   }
   //HostCom.println();
+
 }
 
 void setup() {
@@ -66,10 +70,18 @@ void setup() {
   enable_trigger = false;
   HostCom.println(" -> [ok]");
 
+  // LED pin //
+  HostCom.print("* 2. Settting LED PIN ");
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, LOW);
+  HostCom.println(" -> [ok]");
+
   // Running the loop application //
   HostCom.println("--- Runnning Application ---");
   HostCom.println();
   HostCom.flush();
+
+  trg_counter = 0;
   
 }
 
@@ -82,22 +94,31 @@ void loop() {
   if(trigger_signal.trigger_received == true){
       // set output pin to HIGH //
       digitalWrite(trigger_signal.PIN, HIGH);
+      // set LED pin to HIGH //
+      digitalWrite(LED_PIN, HIGH);
+
       enable_trigger = true;
       
       trigger_high_period = mtime+TRIGGER_HIGH_INTERVAL_MS;
       trigger_signal.trigger_received = false;
 
       send_warning = false;
-      
-      HostCom.println("[L] -> Pin High");
+      trg_counter++;
+
+      HostCom.print("[H] -> Pin High > C: ");
+      HostCom.print(trg_counter);
+
   }
 
   if( (mtime >= trigger_high_period) && (enable_trigger == true) ){
     // set output pin to LOW //
     digitalWrite(trigger_signal.PIN, LOW);
+    // set LED pin to LOW //
+    digitalWrite(LED_PIN, LOW);
+    
     enable_trigger = false;
 
-    HostCom.println("[L] -> Pin Low");
+    HostCom.println(" >> [L] -> Pin Low");
   }
 
   if(mtime >= warning_period){

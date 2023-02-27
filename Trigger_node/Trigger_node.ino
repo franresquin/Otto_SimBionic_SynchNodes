@@ -13,6 +13,7 @@
 #define LED_PIN A0
 
 #define NUM_TRIGGERS_TO_TRANSMIT 2
+#define TRIGGER_BLOCKING_TIME_MS 2000
 
 // Host MAC-Address //
 //uint8_t Esp_Host_MacAddress[] = {0xA8, 0x03, 0x2A, 0xEA, 0x92, 0x0C};
@@ -24,27 +25,31 @@ typedef struct{
 	const uint8_t PIN;
 	uint16_t event_number;
 	bool listen_trigger;
+  unsigned int block_time;
 }trigger_t;
 
-trigger_t trigger_input = {INTERRUPT_PIN, 0, false};
+trigger_t trigger_input = {INTERRUPT_PIN, 0, false, 0};
 bool flag_send_trigger;
+unsigned int tgg_counter=0;
 
 //- Button Variable -//
 bool buttonState;
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  HostCom.println("[S] Trigger sent - Confirmed");
+  //HostCom.println("[S] Trigger sent - Confirmed");
 }
 
 //- Callback executed when a trigger is received -//
 void trigger_interrupt_handler(void){
+  unsigned int mtime = millis();
 
   //HostCom.print("+ [I] Trigger Received -> ");
-  if(trigger_input.listen_trigger == true){
+  if( (trigger_input.listen_trigger == true) && (mtime >= trigger_input.block_time) ){
     if( trigger_input.event_number++ >= (NUM_TRIGGERS_TO_TRANSMIT-1) ){
       trigger_input.listen_trigger = false;
     }
     flag_send_trigger = true;
+    trigger_input.block_time = mtime+TRIGGER_BLOCKING_TIME_MS;
     //HostCom.print("Valid");
   }else{
     //HostCom.print("Discarded");
@@ -99,10 +104,13 @@ void setup() {
 
   //- Flag and globals -//
   flag_send_trigger = false;
+  trigger_input.block_time = 0;
 
   HostCom.println("--- Runnning Application ---");
   HostCom.println();
   HostCom.flush();
+
+  tgg_counter = 0;
   
 }
 
@@ -124,8 +132,8 @@ void loop() {
   if(curr_button != buttonState){
     
     buttonState = curr_button;
-    HostCom.print("[B] Button Changed: ");
-    HostCom.print(buttonState);
+    // HostCom.print("[B] Button Changed: ");
+    // HostCom.print(buttonState);
     HostCom.print(" >> ");
     
     if(trigger_input.listen_trigger == false){
@@ -151,11 +159,16 @@ void loop() {
     if(!trigger_input.listen_trigger){
       digitalWrite(LED_PIN, LOW);
     }
-    HostCom.println("[T] Trigger send >>");
+    tgg_counter++;
+    HostCom.print("[T] Trigger -> C: ");
+    HostCom.print(tgg_counter);
+    HostCom.println("; <<");
   }
 
   if(mtime >= warning_period){
-    HostCom.println("...Waiting for the trigger...");
+    HostCom.print("...Waiting for the trigger; C: ");
+    HostCom.print(tgg_counter);
+    HostCom.println("; ...");
     warning_period += WARNING_PERIOD_MS;
   }
   
